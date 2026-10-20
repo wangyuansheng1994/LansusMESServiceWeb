@@ -1,6 +1,44 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
+
+/** 前后端版本契约版本号 —— 与 src/api/modules/meta.ts 的常量保持一致 */
+const API_CONTRACT_VERSION = '1.0.0';
+
+/**
+ * 构建时产出 dist/version.json（方案 v3.1 §6.2 / 任务书 6.3）：
+ * 前端启动 / 路由切换时与后端 /api/v1/meta/version 协商比对。
+ * 注意 frontendCommit 在构建时取当前 git commit —— 因此必须先提交再构建。
+ */
+function versionJsonPlugin(): Plugin {
+  return {
+    name: 'emit-version-json',
+    apply: 'build',
+    generateBundle() {
+      let commit = 'unknown';
+      try {
+        commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+          .toString()
+          .trim();
+      } catch {
+        // 无 git 环境（如直接拷贝源码构建）时保留 unknown
+      }
+      const version = {
+        frontendVersion: 'framework-preview',
+        frontendCommit: commit,
+        buildTime: new Date().toISOString(),
+        apiContractVersion: API_CONTRACT_VERSION,
+        minBackendVersion: '1.0.0',
+      };
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify(version, null, 2),
+      });
+    },
+  };
+}
 
 /**
  * 开发环境：Vite dev server 只服务前端，接口通过 proxy 打到本地 Tomcat。
@@ -20,7 +58,7 @@ import { fileURLToPath, URL } from 'node:url';
  *     跨站 XHR 不会携带 pw.session.id。
  */
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), versionJsonPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

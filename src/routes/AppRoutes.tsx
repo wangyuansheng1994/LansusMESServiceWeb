@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Spin } from 'antd';
 import { AppLayout } from '@/layouts/AppLayout';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
+import { LegacyPage } from '@/pages/LegacyPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { RequireAuth } from '@/routes/RequireAuth';
 
@@ -63,6 +64,16 @@ export function AppRoutes() {
         }
       >
         <Route index element={<Navigate to="/demo/customer" replace />} />
+
+        {/* 老 JSP 容器：/legacy?src=…&name=…（同源 iframe，共享会话） */}
+        <Route
+          path="/legacy"
+          element={
+            <Page routeKey="/legacy">
+              <LegacyPage />
+            </Page>
+          }
+        />
 
         <Route
           path="/demo/customer"

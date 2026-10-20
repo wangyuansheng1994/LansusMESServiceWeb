@@ -1,25 +1,24 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Form, Input, Space, Typography, message } from 'antd';
+import { Alert, App, Button, Card, Form, Input, Space, Typography } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ApiError } from '@/api/types';
 import { resolveErrorMessage } from '@/api/query';
 import { useAuthStore } from '@/api/session';
 
 /**
- * 登录页。
+ * 登录页（framework-preview：走后端 JSON 登录接口）。
  *
- * ★ 关键设计：直接复用老系统的 Shiro 表单登录，【零后端改动】
- *     POST /console/aspanse/login  (application/x-www-form-urlencoded)
- *     body: username=xxx&password=yyy
+ * ★ POST /console/aspanse/api/v1/auth/login（AuthApiController）
+ *   后端复刻 MobileMainController 的程序化登录先例：
+ *   查库比对 MD5(loginName+password) 后，用 "SSO" 哨兵口令走既有
+ *   SystemAuthorizingRealm 建立 Shiro Session —— 认证仍是唯一一套，
+ *   登录态与老 JSP 页面共享同一个 pw.session.id。
  *
- *   成功 → 302 到 ${adminPath}?login ；失败 → 302 回 ${adminPath}/login
- *   XHR 自动跟随 302，所以靠"落点是不是登录页"判断成败（见 session.ts）。
- *
- *   这样做的价值：Phase 0 不需要等后端新增 /api/v1/login 就能跑通完整链路，
- *   而且登录态与老 JSP 页面天然共享 —— 同一个 pw.session.id。
- *   等后端 JSON 版登录就绪后，只改 session.ts 的 login()，本页无需改动。
+ *   失败文案来自后端 RestResult.msg（与老页面逐字一致），
+ *   由适配器解包成 ApiError(business) 在这里展示。
  */
 export function LoginPage() {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((s) => s.login);
@@ -46,7 +45,7 @@ export function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f0f2f5',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%)',
         padding: 16,
       }}
     >
@@ -54,9 +53,11 @@ export function LoginPage() {
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
             <Typography.Title level={3} style={{ marginBottom: 4 }}>
-              MES 前端验证
+              Lansus MES
             </Typography.Title>
-            <Typography.Text type="secondary">React 19 + Ant Design 6</Typography.Text>
+            <Typography.Text type="secondary">
+              前后端分离 · 本地框架预览版
+            </Typography.Text>
           </div>
 
           {error ? <Alert type="error" showIcon message={error} /> : null}
@@ -93,11 +94,11 @@ export function LoginPage() {
           <Alert
             type="info"
             showIcon
-            message="登录走老系统的 Shiro 表单登录"
+            message="登录通道"
             description={
               <Typography.Text style={{ fontSize: 12 }}>
-                复用 <code>POST /console/aspanse/login</code>，与老 JSP 页面共享同一个{' '}
-                <code>pw.session.id</code>，因此新老页面登录状态互通。
+                复用 <code>POST /console/aspanse/api/v1/auth/login</code>，登录成功即建立
+                Shiro 会话（<code>pw.session.id</code>），与老 JSP 页面登录状态互通。
               </Typography.Text>
             }
           />

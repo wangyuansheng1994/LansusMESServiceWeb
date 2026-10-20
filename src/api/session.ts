@@ -65,40 +65,25 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
   /**
    * 登录。
    *
-   * ★ 走老系统的 Shiro FormAuthenticationFilter 表单登录，零后端改动：
-   *     POST /console/aspanse/login   (application/x-www-form-urlencoded)
-   *     body: username=xxx&password=yyy
-   *   成功 → 302 到 successUrl（${adminPath}?login）
-   *   失败 → 302 回 loginUrl（${adminPath}/login）
-   *   XHR 自动跟随 302，所以我们靠"落点是不是登录页"来判断成败。
+   * ★ 走后端 JSON 登录接口（AuthApiController，已随 framework-preview 落地）：
+   *     POST /console/aspanse/api/v1/auth/login  (application/x-www-form-urlencoded)
+   *     字段：loginName、password
+   *   后端复刻 MobileMainController 的程序化登录先例（"SSO" 哨兵口令 +
+   *   SystemAuthorizingRealm），成功即建立同一套 Shiro Session，
+   *   Set-Cookie pw.session.id，与老 JSP 页面天然互通。
    *
-   *   等后端 /api/v1/login（返回 JSON）就绪后，把这里换成 JSON 版即可，
-   *   上层组件无需改动。
+   *   RestResult 信封由适配器解包：result:false 会抛 ApiError(business)，
+   *   message 为后端原文（"用户名或密码输入错误，请重新输入" 等）。
    */
   async login(username, password) {
-    const body = new URLSearchParams({ username, password }).toString();
+    const body = new URLSearchParams({ loginName: username, password }).toString();
 
-    // raw: true —— 登录响应不是 JSON 信封，直接拿原始 body 做落点判断
-    const text = await post<string>('/aspanse/login', body, {
-      raw: true,
+    await post<unknown>('/aspanse/api/v1/auth/login', body, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      // 登录接口不应该被 lane 取消
       timeout: 30_000,
     });
 
-    const landedOnLoginPage =
-      typeof text === 'string' &&
-      (text.includes('loginForm') || text.includes('请填写用户名'));
-
-    if (landedOnLoginPage) {
-      throw new ApiError({
-        kind: 'business',
-        code: 'AUTH-FAILED',
-        message: '工号或密码错误',
-      });
-    }
-
-    // 登录成功，拉用户信息（失败也不阻塞登录流程）
+    // 登录成功（pw.session.id 已 Set-Cookie），拉用户信息（失败也不阻塞登录流程）
     await getState().checkSession();
   },
 
@@ -109,7 +94,7 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
       // 忽略：登出失败也要清本地状态
     }
     set({ user: null });
-    window.location.href = '/console/aspanse/login';
+    window.location.href = '/login';
   },
 
   /**
@@ -176,7 +161,8 @@ let visibilityBound = false;
 
 async function ping(): Promise<void> {
   try {
-    await get(FALLBACK_PROBE_API, { pageSize: 1 });
+    // /api/v1/me 已落地（MeApiController），比老查询接口轻量
+    await get(ME_API);
     backoff = HEARTBEAT_MS; // 成功，恢复正常节奏
   } catch (e) {
     // 心跳失败不弹提示 —— 断网时用户不该被心跳刷屏
@@ -219,12 +205,12 @@ export function stopHeartbeat(): void {
   }
 }
 
-/** 由 App 注入：收到未登录时跳登录，并记住当前路由以便回来 */
+/** 由 App 注入：收到未登录时跳 React 登录页，并记住当前路由以便回来 */
 export function installUnauthenticatedHandler(): void {
   setUnauthenticatedHandler(() => {
     stopHeartbeat();
     const here = window.location.pathname + window.location.search;
     const next = encodeURIComponent(here);
-    window.location.href = `/console/aspanse/login?redirect=${next}`;
+    window.location.href = `/login?redirect=${next}`;
   });
 }
