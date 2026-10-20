@@ -1,27 +1,38 @@
 import { useState } from 'react';
-import { Alert, App, Button, Card, Form, Input, Space, Typography } from 'antd';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { Alert, App, Button, Form, Input } from 'antd';
 import { ApiError } from '@/api/types';
 import { resolveErrorMessage } from '@/api/query';
 import { useAuthStore } from '@/api/session';
+import { getBackendVersion } from '@/api/modules/meta';
 
 /**
- * 登录页（framework-preview：走后端 JSON 登录接口）。
+ * 登录页 —— 视觉与文案对照老页 WEB-INF/views/login/index.jsp 逐项移植：
  *
- * ★ POST /console/aspanse/api/v1/auth/login（AuthApiController）
- *   后端复刻 MobileMainController 的程序化登录先例：
- *   查库比对 MD5(loginName+password) 后，用 "SSO" 哨兵口令走既有
- *   SystemAuthorizingRealm 建立 Shiro Session —— 认证仍是唯一一套，
- *   登录态与老 JSP 页面共享同一个 pw.session.id。
+ *   全屏背景图 /console/html/images/login_background.jpg（老系统静态资源，同源直引）
+ *   表单右置（左 60%、上 10%）、345px 白卡片、5px 圆角、29px 内边距
+ *   标题 = 后端配置 productName（老页 ${pw:getConfig('productName')} 同源，
+ *          经 /api/v1/meta/version 透出，不写死）
+ *   标题 36px 蓝字 #2B6F9C、标签 17px、全宽大按钮
+ *   必填文案逐字照搬："请填写用户名." / "请填写密码."
  *
- *   失败文案来自后端 RestResult.msg（与老页面逐字一致），
- *   由适配器解包成 ApiError(business) 在这里展示。
+ * ★ 登录走 POST /console/aspanse/api/v1/auth/login（AuthApiController），
+ *   复刻 MobileMainController 的程序化登录先例（"SSO" 哨兵 +
+ *   SystemAuthorizingRealm），成功即建立同一套 Shiro Session，
+ *   与老 JSP 页面共享 pw.session.id。失败文案来自后端 RestResult.msg。
  */
 export function LoginPage() {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((s) => s.login);
+
+  const versionQuery = useQuery({
+    queryKey: ['meta-version'],
+    queryFn: getBackendVersion,
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -39,37 +50,61 @@ export function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%)',
-        padding: 16,
-      }}
-    >
-      <Card style={{ width: 400 }} variant="outlined">
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <div style={{ textAlign: 'center' }}>
-            <Typography.Title level={3} style={{ marginBottom: 4 }}>
-              Lansus MES
-            </Typography.Title>
-            <Typography.Text type="secondary">
-              前后端分离 · 本地框架预览版
-            </Typography.Text>
-          </div>
+    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+      {/* 老页同款背景图：position:absolute / left:0 / top:0 / bottom:0 / width:100% */}
+      <img
+        src="/console/html/images/login_background.jpg"
+        alt=""
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: -1,
+          width: '100%',
+          border: 0,
+        }}
+      />
 
-          {error ? <Alert type="error" showIcon message={error} /> : null}
+      {/* 老页：#login { margin-left: 60%; margin-top: 10% } */}
+      <div style={{ marginLeft: '60%', marginTop: '10%', width: 345 }}>
+        <div
+          style={{
+            width: 345,
+            padding: 29,
+            background: '#fff',
+            borderRadius: 5,
+            textAlign: 'left',
+          }}
+        >
+          {/* 老页 h1.form-signin-heading：36px / #2B6F9C，值为配置 productName */}
+          <h1
+            style={{
+              fontSize: 36,
+              color: '#2B6F9C',
+              fontFamily: 'Helvetica, Georgia, Arial, sans-serif, 黑体',
+              margin: 0,
+              marginBottom: 35,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {versionQuery.data?.productName ?? ''}
+          </h1>
+
+          {/* 老页 #messageBox 错误区的等价物 */}
+          {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 12 }} /> : null}
 
           <Form layout="vertical" onFinish={onFinish} autoComplete="off" requiredMark={false}>
             <Form.Item
               name="username"
               label="工号"
-              rules={[{ required: true, message: '请输入工号' }]}
+              validateTrigger="onSubmit"
+              rules={[{ required: true, message: '请填写用户名.' }]}
+              style={{ marginBottom: 8 }}
             >
               <Input
-                prefix={<UserOutlined />}
+                id="username"
+                name="username"
                 placeholder="请输入工号"
                 size="large"
                 autoFocus
@@ -79,31 +114,26 @@ export function LoginPage() {
             <Form.Item
               name="password"
               label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
+              validateTrigger="onSubmit"
+              rules={[{ required: true, message: '请填写密码.' }]}
+              style={{ marginBottom: 24 }}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" size="large" />
+              <Input.Password id="password" name="password" placeholder="请输入密码" size="large" />
             </Form.Item>
 
-            <Form.Item style={{ marginBottom: 0 }}>
-              <Button type="primary" htmlType="submit" block size="large" loading={loading}>
-                登录
-              </Button>
-            </Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              loading={loading}
+              style={{ height: 48, fontSize: 24, background: '#2B6F9C' }}
+            >
+              登录
+            </Button>
           </Form>
-
-          <Alert
-            type="info"
-            showIcon
-            message="登录通道"
-            description={
-              <Typography.Text style={{ fontSize: 12 }}>
-                复用 <code>POST /console/aspanse/api/v1/auth/login</code>，登录成功即建立
-                Shiro 会话（<code>pw.session.id</code>），与老 JSP 页面登录状态互通。
-              </Typography.Text>
-            }
-          />
-        </Space>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

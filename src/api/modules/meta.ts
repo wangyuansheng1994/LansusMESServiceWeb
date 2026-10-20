@@ -10,6 +10,8 @@ export interface BackendVersion {
   backendVersion: string;
   backendCommit: string;
   apiContractVersion: string;
+  /** 老登录页标题 ${pw:getConfig('productName')} 的同源配置值 */
+  productName?: string | null;
 }
 
 /** 前端构建时随 version.json 一起产出的契约版本（vite.config.ts 内同名常量） */

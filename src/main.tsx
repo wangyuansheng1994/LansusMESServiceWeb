@@ -45,6 +45,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConfigProvider
       locale={zhCN}
+      button={{ autoInsertSpace: false }}
       theme={{
         algorithm: theme.defaultAlgorithm,
         token: { colorPrimary: '#1677ff', borderRadius: 4 },
