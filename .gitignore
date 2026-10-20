@@ -1,0 +1,11 @@
+# 前端工程（demoLst 分支验证用）
+node_modules/
+dist/
+*.local
+.vite/
+
+# pnpm store（为避免用户级缓存目录权限问题，放在工程内）
+.pnpm-store/
+
+# 构建临时目录（esbuild 需要可写的 TEMP）
+.tmp/

@@ -1,0 +1,155 @@
+# =============================================================================
+# MES 前端（React） + 后端（Tomcat 老系统）同源部署配置样例
+#
+# 设计目标：前端与后端【物理独立部署、独立发版】，
+#           但在浏览器眼里是【同一个源】。
+#
+# 为什么必须同源而不是真跨域：
+#   Shiro 1.2.6（2015 年发布，早于 SameSite 规范）不写 SameSite 属性，
+#   现代浏览器对未声明的 cookie 默认按 SameSite=Lax 处理，
+#   而 Lax 的规则是【跨站 XHR / fetch 请求不携带该 cookie】。
+#   真跨域就需要：CORS 白名单 + Allow-Credentials + SameSite=None + HTTPS
+#   （SameSite=None 强制 Secure）→ 内网 MES 上 HTTPS 的成本和故障面完全不划算。
+#
+#   同源反代下这些问题【一个都不存在】，后端零改动。
+# =============================================================================
+
+upstream mes_backend {
+    # Tomcat 地址。多实例时可在此加多行做负载均衡，
+    # 但注意：session 存在 CacheSessionDAO（本地 ehcache）里，
+    # 多实例必须换成 JedisSessionDAO（配置里被注释掉了），否则用户会掉登录。
+    server 10.0.0.10:8080;
+    keepalive 32;
+}
+
+server {
+    listen       80;
+    server_name  mes.example.com;
+
+    # 前端静态文件（demo-web/dist/ 的内容）
+    root  /data/web/mes-frontend;
+    index index.html;
+
+    charset utf-8;
+    client_max_body_size 100m;   # 老系统有附件上传，web.maxUploadSize=52428800(50MB)
+
+    gzip on;
+    gzip_min_length 1k;
+    gzip_comp_level 5;
+    gzip_types text/plain text/css application/json application/javascript
+               application/x-javascript text/xml application/xml image/svg+xml;
+    gzip_vary on;
+
+    # -------------------------------------------------------------------------
+    # ① 带内容哈希的构建产物 —— 强缓存 1 年 + immutable
+    #
+    #    文件名由内容决定（如 vendor-antd-C6xow5EI.js），改一行内容文件名就变，
+    #    所以可以放心长缓存。immutable 让浏览器连刷新都不发协商请求。
+    # -------------------------------------------------------------------------
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+        try_files $uri =404;
+    }
+
+    # -------------------------------------------------------------------------
+    # ② SPA 入口 —— ★ 绝对不能被强缓存
+    #
+    #    index.html 里写的是【哈希文件名】。如果它被缓存，用户会一直加载
+    #    旧的哈希文件名 → 旧代码 → 你发的版永远不生效。
+    #    这是整套缓存策略里最容易被忽略、后果最严重的一条。
+    #
+    #    no-cache = 每次都要协商（不是不缓存），命中则返回 304（几十字节）。
+    # -------------------------------------------------------------------------
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+        etag on;
+        if_modified_since exact;
+        expires -1;
+    }
+
+    # -------------------------------------------------------------------------
+    # ③ SPA 路由回退 —— BrowserRouter 必需
+    #
+    #    刷新 /demo/customer 时服务器上并没有这个文件，
+    #    必须回退到 index.html 让前端路由接管。
+    #    有这一行才能用 BrowserRouter（URL 干净），否则要退回 HashRouter。
+    # -------------------------------------------------------------------------
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # -------------------------------------------------------------------------
+    # ④ 后端反代 —— 保持同源，cookie 自动携带
+    #
+    #    覆盖范围：
+    #      /console/aspanse/**   老 JSP 页面 + 老 JSON 接口（迁移期间并存）
+    #      /console/html/**      老静态资源（jQuery/bootstrap/ECharts/miniUI）
+    #      /console/moduleStatic/**
+    #      /console/raqsoft/**   润乾报表
+    #      /console/api/v1/**    新增的 React 专用接口
+    #    统一用 /console/ 一个前缀反代即可。
+    # -------------------------------------------------------------------------
+    location /console/ {
+        proxy_pass         http://mes_backend;
+        proxy_http_version 1.1;
+
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Connection        "";
+
+        # 保持 cookie 的 path 语义（后端 cookie path 是 /console）
+        proxy_cookie_path  /console /console;
+
+        # ★ 报表/导出/打印接口很慢 —— 这个项目连 Maven 构建都要十几分钟，
+        #   默认 60s 的 proxy_read_timeout 会把长任务掐断。
+        proxy_connect_timeout 30s;
+        proxy_send_timeout    600s;
+        proxy_read_timeout    600s;
+
+        # 大文件下载（附件走 AdDataController 流式返回）不要缓冲
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # -------------------------------------------------------------------------
+    # ⑤ 老系统静态资源的缓存策略（保持与后端一致，避免行为分裂）
+    #
+    #    后端 spring-mvc.xml 里配的是：
+    #      <mvc:resources mapping="/html/**"          cache-period="31536000"/>
+    #      <mvc:resources mapping="/moduleStatic/**"  cache-period="31536000"/>
+    #    即强缓存 1 年。
+    #
+    #    ⚠️ 但老资源的文件名【没有内容哈希】（如 /html/common/pwplatform.min.js），
+    #       所以改一行代码用户一年内不会重新下载，只能靠改文件名。
+    #       这是老系统埋着的雷，改老前端资源时必须记得改文件名。
+    #
+    #    这里显式声明，是为了让运维一眼看到这个风险：
+    #    如果你要修老前端的 bug，请把文件改名，或者临时把下面两段注释掉。
+    # -------------------------------------------------------------------------
+    location /console/html/ {
+        proxy_pass http://mes_backend;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000";
+        access_log off;
+    }
+
+    location /console/moduleStatic/ {
+        proxy_pass http://mes_backend;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000";
+        access_log off;
+    }
+
+    # 健康检查（可选）
+    location = /healthz {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+}

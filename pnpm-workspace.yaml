@@ -1,0 +1,13 @@
+# pnpm 配置（pnpm 11+ 把部分 settings 收进 workspace 文件）
+#
+# esbuild 需要在安装时执行构建脚本（下载/校验平台二进制），
+# 否则 vite build 会失败。这里显式允许。
+allowBuilds:
+  esbuild: true
+
+# antd 6.6.6 与 @tanstack/react-query 5.104.2 发布未满 pnpm 默认的
+# "最小发布年龄"窗口，这里显式放行（本项目锁定具体版本，风险可控）。
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.104.2'
+  - '@tanstack/react-query@5.104.2'
+  - antd@6.6.6
