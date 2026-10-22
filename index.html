@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MES 前端升级验证</title>
+    <!-- 标题/图标对位老系统：title=productName（启动后由 meta/version 动态校正，见 main.tsx）。
+         favicon 与老菜单图标字体 CSS 在 main.tsx 按 CONTEXT_PATH 运行时注入
+         （index.html 不写死 /console 前缀，否则 /MES 上下文部署全 404） -->
+    <title>嘉辰智能制造平台</title>
+    <!-- 运行时环境配置（形态 B 部署时按服务器上下文改写，不打包不 hash） -->
+    <script src="./env.js"></script>
   </head>
   <body>
     <div id="root"></div>

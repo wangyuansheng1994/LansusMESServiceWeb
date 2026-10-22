@@ -10,6 +10,7 @@
  *   在它落地前，本模块只打 console，不产生失败噪音。
  */
 import { post } from './request';
+import { API_V1 } from './config';
 
 export interface ErrorReport {
   kind: string;
@@ -47,8 +48,7 @@ function send(payload: ErrorReport): void {
   const body = { ...payload, ...basePayload() };
 
   // 上报本身失败必须完全静默，绝不能引发二次弹窗或循环
-  void post('/aspanse/api/v1/error-report', body, { raw: true }).catch(() => {
-    // eslint-disable-next-line no-console
+  void post(`${API_V1}/error-report`, body, { raw: true }).catch(() => {
     console.warn('[error-report] 上报接口未就绪或失败，已忽略', body);
   });
 }
@@ -64,11 +64,7 @@ export function reportApiError(e: {
   send(e);
 }
 
-export function reportRenderError(e: {
-  routeKey?: string;
-  message: string;
-  stack: string;
-}): void {
+export function reportRenderError(e: { routeKey?: string; message: string; stack: string }): void {
   send({
     kind: 'render',
     routeKey: e.routeKey,

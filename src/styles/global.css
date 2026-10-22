@@ -17,3 +17,28 @@ pre {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* ── 侧栏菜单对位老壳样式（menu.jsp 实测行高：L1=48 / L2=40 / L3=36）── */
+.app-sider-menu.ant-menu-inline > .ant-menu-item,
+.app-sider-menu.ant-menu-inline > .ant-menu-submenu > .ant-menu-submenu-title {
+  height: 48px;
+  line-height: 48px;
+}
+.app-sider-menu .ant-menu-sub .ant-menu-item,
+.app-sider-menu .ant-menu-sub .ant-menu-submenu > .ant-menu-submenu-title {
+  height: 40px;
+  line-height: 40px;
+}
+.app-sider-menu .ant-menu-sub .ant-menu-sub .ant-menu-item {
+  height: 36px;
+  line-height: 36px;
+}
+
+/* ── 侧栏滚动条隐藏（滚动能力保留，仅不显示滚动条）── */
+.app-sider {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / 旧 Edge */
+}
+.app-sider::-webkit-scrollbar {
+  display: none; /* Chrome / Edge / 国产双核 */
+}

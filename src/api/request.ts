@@ -17,6 +17,8 @@ export interface ExtraOptions {
    * 用于搜索框输入、表格快速翻页等场景，替代手写 debounce + abort。
    */
   lane?: string;
+  /** 拿到响应头时的回调（下载需要从 Content-Disposition 解析文件名） */
+  onHeaders?: (headers: Record<string, unknown>) => void;
 }
 
 export type RequestConfig = AxiosRequestConfig & ExtraOptions;
@@ -33,11 +35,71 @@ function applyLane(cfg: RequestConfig): void {
   cfg.signal = ctrl.signal;
 }
 
+// ── 防重复提交（方案 v3.1 §7.2 / F13）───────────────────────────
+// POST/PUT 以 method+url+body 为 key，2s 内相同请求合并复用同一 Promise。
+// 对位老 default.jsp 禁用 submit 10s 的防抖；MES 现场网络抖动 +
+// 用户连点是常态，重复提交直接造脏数据（重复单据）。
+const DEDUPE_WINDOW_MS = 2_000;
+const inflightWrites = new Map<string, { promise: Promise<unknown>; start: number }>();
+
+function dedupeKey(cfg: RequestConfig): string | null {
+  const method = (cfg.method ?? 'GET').toUpperCase();
+  if (method !== 'POST' && method !== 'PUT') return null;
+  const data = cfg.data;
+  // FormData（上传）/ Blob / ArrayBuffer 不参与合并——内容不可枚举，误合并会丢文件
+  if (typeof FormData !== 'undefined' && data instanceof FormData) return null;
+  if (typeof Blob !== 'undefined' && data instanceof Blob) return null;
+  if (typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) return null;
+  let bodyHash: string;
+  try {
+    bodyHash = typeof data === 'string' ? data : JSON.stringify(data ?? null);
+  } catch {
+    return null; // 循环引用等不可序列化场景：放弃合并，正常发请求
+  }
+  return `${method} ${buildUrl(cfg)} ${bodyHash}`;
+}
+
+function applyDedupe<T>(cfg: RequestConfig, send: () => Promise<T>): Promise<T> {
+  const key = dedupeKey(cfg);
+  if (!key) return send();
+
+  const now = Date.now();
+  const existing = inflightWrites.get(key);
+  if (existing && now - existing.start < DEDUPE_WINDOW_MS) {
+    return existing.promise as Promise<T>;
+  }
+
+  const promise = send();
+  const entry = { promise, start: now };
+  inflightWrites.set(key, entry);
+  // 结算后仍保留到 2s 窗口结束（窗口内同请求复用同一 Promise，不再打后端）。
+  // ★ 用 then(cleanup, cleanup) 而不是 finally：finally 派生的新 Promise 在
+  //   原 Promise reject 时也会 reject 且无人 catch → 控制台 unhandledrejection。
+  const cleanup = () => {
+    const remain = DEDUPE_WINDOW_MS - (Date.now() - entry.start);
+    if (remain <= 0) {
+      if (inflightWrites.get(key) === entry) inflightWrites.delete(key);
+    } else {
+      setTimeout(() => {
+        if (inflightWrites.get(key) === entry) inflightWrites.delete(key);
+      }, remain);
+    }
+  };
+  void promise.then(cleanup, cleanup);
+  return promise;
+}
+
 export async function request<T = unknown>(cfg: RequestConfig): Promise<T> {
   applyLane(cfg);
+  return applyDedupe(cfg, () => sendRequest<T>(cfg));
+}
 
+async function sendRequest<T = unknown>(cfg: RequestConfig): Promise<T> {
+  // 注意：applyLane 只在 request() 入口调一次，这里不再重复
+  // （重复调用会 abort 掉上一次刚创建的 controller）
   const url = buildUrl(cfg);
   const res = await http.request(cfg);
+  cfg.onHeaders?.(res.headers as Record<string, unknown>);
   const body: unknown = res.data;
   const traceId = readHeader(res.headers, 'x-trace-id');
 
@@ -144,28 +206,50 @@ export function del<T>(url: string, params?: object, cfg?: RequestConfig): Promi
  * 文件下载。
  * ★ 报表/导出类接口走 5 分钟超时，别用默认 60s ——
  *   这个项目连构建都要十几分钟，报表只会更慢。
+ * ★ 文件名优先从响应头 Content-Disposition 解析（方案 v3.1 §7.2），
+ *   解析不到再用调用方传入的 filename。
  */
 export async function download(
   url: string,
   params: object | undefined,
-  filename: string,
+  filename?: string,
   timeout = 300_000,
 ): Promise<void> {
+  let disposition: string | undefined;
   const blob = await request<Blob>({
     url,
     params,
     method: 'GET',
     responseType: 'blob',
     timeout,
+    onHeaders: (h) => {
+      const v = h['content-disposition'];
+      if (typeof v === 'string') disposition = v;
+    },
   });
   const href = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = href;
-  a.download = filename;
+  a.download = filename ?? parseDispositionFilename(disposition) ?? 'download';
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(href);
+}
+
+/** 解析 Content-Disposition 的文件名（兼容 filename*=UTF-8'' 与 filename="..." 两种形态） */
+function parseDispositionFilename(disposition: string | undefined): string | undefined {
+  if (!disposition) return undefined;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].trim());
+    } catch {
+      /* 编码非法时落到普通形态 */
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(disposition);
+  return plain ? plain[1].trim() : undefined;
 }
 
 /** 文件上传（带进度）。不手动设 Content-Type，让浏览器带 boundary */

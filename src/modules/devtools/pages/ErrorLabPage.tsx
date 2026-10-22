@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Descriptions, Space, Tag, Typography, message } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Space, Tag, Typography } from 'antd';
 import { ApiError } from '@/api/types';
 import { get } from '@/api/request';
 import { resolveErrorMessage } from '@/api/query';
+import { ADMIN_PATH, CTX } from '@/api/config';
 
 interface ProbeResult {
   label: string;
@@ -17,6 +18,7 @@ interface ProbeResult {
  * 必须逐条验证通过，否则线上就是用户看见堆栈或者看见白屏。
  */
 export function ErrorLabPage() {
+  const { message } = App.useApp();
   const [results, setResults] = useState<ProbeResult[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -52,21 +54,21 @@ export function ErrorLabPage() {
         description="每一条都对应后端一个真实行为。全部通过，才说明错误处理设计成立。"
       />
 
-      <Card size="small" title="① 业务错误（信封 result:false / retCode!=='0'）">
+      <Card size="small" title="① 不存在的路径（404 → 后端 HTML 错误页嗅探）">
         <Space wrap>
           <Button
-            loading={busy === '业务错误'}
+            loading={busy === '404 路径'}
             onClick={() =>
-              void probe('业务错误', () =>
-                // 故意传一个不存在的路径，让后端返回非 JSON，走 badResponse
-                get('/aspanse/__not_exist__/probe'),
+              void probe('404 路径', () =>
+                // 不存在的路径：后端返回 HTML 错误页，looksLikeHtml 嗅探为 server
+                get(`${ADMIN_PATH}/__not_exist__/probe`),
               )
             }
           >
-            触发业务错误
+            触发 404
           </Button>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            期望：kind=business，组件自己弹 Modal（不抢全局 toast）
+            期望：kind=server（404 的 HTML 错误页被嗅探），组件自己处理提示
           </Typography.Text>
         </Space>
       </Card>
@@ -77,7 +79,7 @@ export function ErrorLabPage() {
             loading={busy === '500 堆栈'}
             onClick={() =>
               void probe('500 堆栈', () =>
-                get('/aspanse/md/mdCustomer/mdCustLookUp', { pageSize: 'NOT_A_NUMBER' }),
+                get(`${ADMIN_PATH}/md/mdCustomer/mdCustLookUp`, { pageSize: 'NOT_A_NUMBER' }),
               )
             }
           >
@@ -115,7 +117,7 @@ export function ErrorLabPage() {
             loading={busy === '超时'}
             onClick={() =>
               void probe('超时', () =>
-                get('/aspanse/md/mdCustomer/mdCustLookUp', undefined, { timeout: 1 }),
+                get(`${ADMIN_PATH}/md/mdCustomer/mdCustLookUp`, undefined, { timeout: 1 }),
               )
             }
           >
@@ -134,7 +136,7 @@ export function ErrorLabPage() {
             onClick={() =>
               void probe('取消静默', async () => {
                 const ctrl = new AbortController();
-                const p = get('/aspanse/md/mdCustomer/mdCustLookUp', undefined, {
+                const p = get(`${ADMIN_PATH}/md/mdCustomer/mdCustLookUp`, undefined, {
                   signal: ctrl.signal,
                 });
                 ctrl.abort(); // 立即取消
@@ -156,7 +158,7 @@ export function ErrorLabPage() {
             danger
             onClick={() => {
               message.warning('即将跳转到后端登录页，回来后当前路由会保留在 ?redirect= 参数里');
-              window.location.href = '/console/aspanse/login';
+              window.location.href = `${CTX}/login`;
             }}
           >
             跳转登录页（真实行为）

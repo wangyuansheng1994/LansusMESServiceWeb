@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
 
-/** 前后端版本契约版本号 —— 与 src/api/modules/meta.ts 的常量保持一致 */
+/** 前后端版本契约版本号 —— 单一来源；通过 define 注入 import.meta.env，前端代码从这里读 */
 const API_CONTRACT_VERSION = '1.0.0';
 
 /**
@@ -25,7 +25,7 @@ function versionJsonPlugin(): Plugin {
         // 无 git 环境（如直接拷贝源码构建）时保留 unknown
       }
       const version = {
-        frontendVersion: 'framework-preview',
+        frontendVersion: 'framework-v1',
         frontendCommit: commit,
         buildTime: new Date().toISOString(),
         apiContractVersion: API_CONTRACT_VERSION,
@@ -58,7 +58,13 @@ function versionJsonPlugin(): Plugin {
  *     跨站 XHR 不会携带 pw.session.id。
  */
 export default defineConfig({
+  // 相对路径产物：同一个 dist 可部署到 /console/app/ 或 /MES/app/（形态 B 的硬要求）
+  base: './',
   plugins: [react(), versionJsonPlugin()],
+  define: {
+    // 契约版本号单一来源注入：meta.ts 的 FRONTEND_API_CONTRACT_VERSION 读这里
+    'import.meta.env.VITE_API_CONTRACT_VERSION': JSON.stringify(API_CONTRACT_VERSION),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -81,6 +87,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // 显式锁定浏览器基线（方案 v3.1 §3.4）：不吃 Vite 默认值的版本漂移
+    // （Vite 8 已把默认基线抬到 Chrome 111/Firefox 114/Safari 16.4）
+    target: ['chrome107', 'edge107', 'firefox104', 'safari16'],
     // 产物文件名带内容哈希 → 可以放心强缓存 1 年
     // （index.html 必须走 no-cache，否则永远拿不到新的哈希文件名）
     rollupOptions: {
@@ -91,9 +100,9 @@ export default defineConfig({
         /**
          * 手动分包：把体积大的第三方库拆出去。
          *
-         * 注意 vendor-charts 故意【不拆】：@ant-design/charts 只在图表页用到，
+         * 注意图表库故意【不拆】：echarts 只在图表页用到，
          * 拆成独立 chunk 后 Vite 会为动态依赖注入 modulepreload，
-         * 导致 1.4 MB 的图表库在首屏就被预加载，反而抵消了懒加载。
+         * 导致 ~1.1MB 的图表库在首屏就被预加载，反而抵消了懒加载。
          * 不拆时它跟着 ChartLabPage 的懒加载 chunk 走，进图表页才下载。
          */
         manualChunks: {

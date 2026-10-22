@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Alert,
+  App,
   Button,
   Card,
   Descriptions,
@@ -10,7 +11,6 @@ import {
   Table,
   Tag,
   Typography,
-  message,
 } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -30,7 +30,8 @@ const columns: ColumnsType<MdCustomer> = [
     dataIndex: 'activeFlag',
     key: 'activeFlag',
     width: 100,
-    render: (v: unknown) => (v === 'Y' ? <Tag color="green">有效</Tag> : <Tag>{String(v ?? '-')}</Tag>),
+    render: (v: unknown) =>
+      v === 'Y' ? <Tag color="green">有效</Tag> : <Tag>{String(v ?? '-')}</Tag>,
   },
 ];
 
@@ -46,6 +47,7 @@ const columns: ColumnsType<MdCustomer> = [
  *  ⑥ 权限按钮 —— PermButton 控制显隐
  */
 export function CustomerDemoPage() {
+  const { message } = App.useApp();
   const [query, setQuery] = useState<MdCustomerQuery>({ pageNo: 1, pageSize: 15 });
   const { data, isFetching, isError, error, refetch } = useMdCustomerLookup(query);
 
@@ -65,8 +67,8 @@ export function CustomerDemoPage() {
         description={
           <span>
             数据来自 <code>GET /console/aspanse/md/mdCustomer/mdCustLookUp</code>
-            ，返回信封为 <code>{'{ retCode, retMsg, page }'}</code>，由{' '}
-            <code>retCodeAdapter</code> 归一化为统一的 <code>PageResult</code>。
+            ，返回信封为 <code>{'{ retCode, retMsg, page }'}</code>，由 <code>retCodeAdapter</code>{' '}
+            归一化为统一的 <code>PageResult</code>。
             这个接口是老系统已经存在的，本次迁移没有改后端任何代码。
           </span>
         }
@@ -82,7 +84,12 @@ export function CustomerDemoPage() {
           </Form.Item>
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={isFetching}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<SearchOutlined />}
+                loading={isFetching}
+              >
                 查询
               </Button>
               <Button
@@ -121,8 +128,8 @@ export function CustomerDemoPage() {
                 </Typography.Text>
               ) : null}
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                常见原因：① Tomcat 未启动 ② 未登录（session 失效）③ 后端 500（此时原始响应是
-                Java 堆栈，已被拦截器拦下不上屏）
+                常见原因：① Tomcat 未启动 ② 未登录（session 失效）③ 后端 500（此时原始响应是 Java
+                堆栈，已被拦截器拦下不上屏）
               </Typography.Text>
             </Space>
           }
@@ -162,14 +169,19 @@ export function CustomerDemoPage() {
             <AdapterProbe raw={data} />
           </Descriptions.Item>
           <Descriptions.Item label="归一化后 total">{page?.total ?? '-'}</Descriptions.Item>
-          <Descriptions.Item label="归一化后 list 长度">{page?.list?.length ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="归一化后 list 长度">
+            {page?.list?.length ?? '-'}
+          </Descriptions.Item>
           <Descriptions.Item label="归一化后 pageNum">{page?.pageNum ?? '-'}</Descriptions.Item>
         </Descriptions>
-        <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0, fontSize: 12 }}>
+        <Typography.Paragraph
+          type="secondary"
+          style={{ marginTop: 12, marginBottom: 0, fontSize: 12 }}
+        >
           ⚠️ 老 Page 类的字段名无法从源码确定（不在工作区，也不在 sources jar 里），
-          <code>normalizeLegacyPage</code> 目前用多候选兼容。
-          如果上面 total 显示 0 但实际有数据，说明候选没命中 ——
-          请打开 F12 Network 看真实响应的 <code>page</code> 字段结构，然后收窄适配器。
+          <code>normalizeLegacyPage</code> 目前用多候选兼容。 如果上面 total 显示 0
+          但实际有数据，说明候选没命中 —— 请打开 F12 Network 看真实响应的 <code>page</code>{' '}
+          字段结构，然后收窄适配器。
         </Typography.Paragraph>
       </Card>
     </Space>

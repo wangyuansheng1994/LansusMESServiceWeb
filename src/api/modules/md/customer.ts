@@ -22,6 +22,7 @@
  *  ② 返回信封是 { retCode, retMsg, page }，由 adapters.ts 的 retCodeAdapter 处理
  */
 import { get } from '@/api/request';
+import { ADMIN_PATH } from '@/api/config';
 import type { PageResult } from '@/api/types';
 
 export interface MdCustomer {
@@ -42,7 +43,7 @@ export interface MdCustomerQuery {
   pageSize?: number;
 }
 
-const BASE = '/aspanse/md/mdCustomer';
+const BASE = `${ADMIN_PATH}/md/mdCustomer`;
 
 export const mdCustomerApi = {
   /**

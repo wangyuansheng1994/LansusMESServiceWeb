@@ -26,7 +26,7 @@ server {
     listen       80;
     server_name  mes.example.com;
 
-    # 前端静态文件（demo-web/dist/ 的内容）
+    # 前端静态文件（LansusMESServiceWeb/dist/ 的内容）
     root  /data/web/mes-frontend;
     index index.html;
 

@@ -58,8 +58,7 @@ export const retCodeAdapter: EnvelopeAdapter = {
   name: 'retCode',
   priority: 10,
 
-  test: (b) =>
-    isPlainObject(b) && 'retCode' in b && ('retMsg' in b || 'page' in b || 'data' in b),
+  test: (b) => isPlainObject(b) && 'retCode' in b && ('retMsg' in b || 'page' in b || 'data' in b),
 
   normalize(body) {
     const b = body as unknown as RetCodeEnvelope;
@@ -86,8 +85,7 @@ export const restResultAdapter: EnvelopeAdapter = {
   name: 'restResult',
   priority: 20,
 
-  test: (b) =>
-    isPlainObject(b) && typeof (b as { result?: unknown }).result === 'boolean',
+  test: (b) => isPlainObject(b) && typeof (b as { result?: unknown }).result === 'boolean',
 
   normalize(body) {
     const env = body as unknown as RestEnvelope;
@@ -105,8 +103,7 @@ export const jqGridAdapter: EnvelopeAdapter = {
   name: 'jqGrid',
   priority: 30,
 
-  test: (b) =>
-    isPlainObject(b) && Array.isArray((b as { rows?: unknown }).rows) && 'records' in b,
+  test: (b) => isPlainObject(b) && Array.isArray((b as { rows?: unknown }).rows) && 'records' in b,
 
   normalize(body) {
     const b = body as Record<string, unknown> & {

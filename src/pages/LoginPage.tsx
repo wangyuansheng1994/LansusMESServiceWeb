@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/api/session';
 import { getBackendVersion } from '@/api/modules/meta';
+import { CONTEXT_PATH } from '@/api/config';
 
 /**
  * 登录页 —— 对照老页 WEB-INF/views/login/index.jsp 的【实测计算样式】逐项复刻
@@ -18,8 +20,9 @@ import { getBackendVersion } from '@/api/modules/meta';
  *   按钮      老页规则 #loginForm input:not([type=checkbox]) 同样命中提交按钮：
  *             93% 宽、同边框/内阴影、背景 #2B6F9C、白字 24px 微软雅黑、
  *             行高 36px、margin-top 25px；渲染总尺寸 289×52
- *   背景      /console/html/images/login_background.jpg（同源老静态资源），
- *             absolute / left 0 / top 0 / bottom 0 / width 100% / z-index -1
+ *   背景      /console/html/images/login_background.jpg（同源老静态资源）；
+ *             2026-10-21 经负责人确认改为容器 CSS 背景 cover 始终铺满
+ *             （老页 img width:100% 窄窗口偏短），见下方实现处注释
  *
  * 登录通道：POST /console/aspanse/api/v1/auth/login（AuthApiController，
  * 复刻 MobileMainController 程序化登录先例），成功即建立同一套 Shiro Session。
@@ -27,6 +30,7 @@ import { getBackendVersion } from '@/api/modules/meta';
  * 文案取后端 RestResult.msg 原文。
  */
 export function LoginPage() {
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,8 +52,12 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      // 老页无成功提示，登录成功直接进入系统
-      window.location.replace('/');
+      // 老页无成功提示，登录成功直接进入系统；
+      // 深链接回跳：消费 session.ts/RequireAuth 记下的 ?redirect=（仅放行站内相对路径，防开放重定向）
+      const redirect = searchParams.get('redirect');
+      const safeTarget =
+        redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
+      window.location.replace(safeTarget);
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');
     } finally {
@@ -58,7 +66,19 @@ export function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f2f2f2', margin: 0, padding: 0 }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        margin: 0,
+        padding: 0,
+        // 老页同款背景图。老页用 <img width:100%>（窄窗口背景偏短），
+        // 经负责人 2026-10-21 确认改为容器 CSS 背景 cover 始终铺满
+        // （等比裁切不变形）——与老页观感的有意偏差，登记在此
+        background: `#2B6F9C url('${CONTEXT_PATH}/html/images/login_background.jpg') center / cover no-repeat`,
+        // 建立 BFC，防止表单 margin-top:10% 与容器发生外边距折叠、在顶部露出一条 body 底色
+        overflow: 'hidden',
+      }}
+    >
       <style>{`
         .legacy-login-input {
           display: block;
@@ -81,13 +101,6 @@ export function LoginPage() {
           box-shadow: 0 0 3px 1px rgba(43, 111, 156, 0.35) inset;
         }
       `}</style>
-
-      {/* 老页同款背景图 */}
-      <img
-        src="/console/html/images/login_background.jpg"
-        alt=""
-        style={{ position: 'absolute', left: 0, top: 0, bottom: 0, zIndex: -1, width: '100%', border: 0 }}
-      />
 
       {/* 老页 #login { margin-left: 60%; margin-top: 10% } */}
       <div style={{ marginLeft: '60%', marginTop: '10%' }}>

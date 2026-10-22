@@ -17,8 +17,7 @@ export const ADAPTERS_DOC: AdapterDoc[] = [
     test: `'retCode' in body && ('retMsg' in body || 'page' in body || 'data' in body)`,
     source:
       'BaseMdCustomerController.mdCustLookUp（console/.../mes/md/customer/BaseMdCustomerController.java:127）',
-    normalize:
-      'retCode==="0" 视为成功；page 字段拆出来归一化为 PageResult。这是本 Demo 用的接口。',
+    normalize: 'retCode==="0" 视为成功；page 字段拆出来归一化为 PageResult。这是本 Demo 用的接口。',
   },
   {
     name: 'restResultAdapter',

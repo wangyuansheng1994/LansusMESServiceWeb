@@ -5,6 +5,7 @@
  * 一次请求拿当前用户 + 三级菜单树。
  */
 import { get } from '@/api/request';
+import { API_V1, CTX } from '@/api/config';
 
 export interface MenuNode {
   id: string;
@@ -32,18 +33,23 @@ export interface HomeData {
 }
 
 export function getHome(): Promise<HomeData> {
-  return get<HomeData>('/aspanse/api/v1/home');
+  return get<HomeData>(`${API_V1}/home`);
 }
 
 /**
  * 老 menuUrl → 可打开的同源地址。
  *
- * 规则与老 menu.jsp 完全一致（login/menu.jsp:162）：
- *   含 "://" 的原样使用（外部绝对地址）；
- *   否则前缀 ${ctx}（= /console）。
- * 兼容 menuUrl 带不带前导斜杠两种历史数据。
+ * 规则与老 menu.jsp:162 完全一致：
+ *   funurl = (menuUrl 含 "://" ? 原样 : ${ctx} + menuUrl)
+ * 其中 ${ctx} = contextPath + adminPath（taglib.jsp:11，unit 环境 = /console/aspanse）。
+ * menu_url 数据本身【不含】adminPath（如 `/lot/define/...`），
+ * 兼容带不带前导斜杠两种历史数据。
+ *
+ * ⚠️ 2026-10-21 修复：曾误拼为 /console + menuUrl（漏 adminPath），
+ *   导致全部老页面 iframe 404——拼写依据以 taglib.jsp + Controller
+ *   的 ${adminPath} 映射为准，不以路径直感猜测。
  */
 export function toLegacyUrl(menuUrl: string): string {
   if (menuUrl.includes('://')) return menuUrl;
-  return '/console' + (menuUrl.startsWith('/') ? '' : '/') + menuUrl;
+  return CTX + (menuUrl.startsWith('/') ? '' : '/') + menuUrl;
 }

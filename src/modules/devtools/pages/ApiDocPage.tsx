@@ -16,13 +16,24 @@ export function ApiDocPage() {
       />
 
       {ADAPTERS_DOC.map((a) => (
-        <Card key={a.name} size="small" title={<Space><Tag color="blue">{a.priority}</Tag>{a.name}</Space>}>
+        <Card
+          key={a.name}
+          size="small"
+          title={
+            <Space>
+              <Tag color="blue">{a.priority}</Tag>
+              {a.name}
+            </Space>
+          }
+        >
           <Descriptions size="small" column={1} bordered>
             <Descriptions.Item label="识别条件">
               <Typography.Text code>{a.test}</Typography.Text>
             </Descriptions.Item>
             <Descriptions.Item label="真实来源">
-              <Typography.Text code style={{ fontSize: 12 }}>{a.source}</Typography.Text>
+              <Typography.Text code style={{ fontSize: 12 }}>
+                {a.source}
+              </Typography.Text>
             </Descriptions.Item>
             <Descriptions.Item label="归一化">
               <Typography.Text style={{ fontSize: 12 }}>{a.normalize}</Typography.Text>
@@ -38,8 +49,8 @@ export function ApiDocPage() {
             HTML 页面。老前端靠 jQuery <code>$.ajax</code> 的默认行为无意间满足了这个条件。
           </Descriptions.Item>
           <Descriptions.Item label="baseURL 必须同源">
-            只能走 Vite proxy / Nginx 反代。改成跨域绝对地址 → Shiro 1.2.6 不写 SameSite →
-            浏览器按 Lax 处理 → <code>pw.session.id</code> 静默不发送。
+            只能走 Vite proxy / Nginx 反代。改成跨域绝对地址 → Shiro 1.2.6 不写 SameSite → 浏览器按
+            Lax 处理 → <code>pw.session.id</code> 静默不发送。
           </Descriptions.Item>
           <Descriptions.Item label="withCredentials: true">
             携带 <code>pw.session.id</code>。漏了就是"登录成功但每个请求都未登录"。
@@ -49,9 +60,10 @@ export function ApiDocPage() {
 
       <Card size="small" title="为什么保留 session 而不是换 token">
         <Typography.Paragraph>
-          认证与权限解析在 <code>SystemAuthorizingRealm</code> 里，而它<strong>不在工作区源码中</strong>：
-          全仓库搜不到该 .java 文件，只在 <code>spring-context-shiro.xml:100</code> 被引用，
-          sources jar 是 1 KB（空）。安全层实现读不到、改不动，换 token 必然形成两套认证并行。
+          认证与权限解析在 <code>SystemAuthorizingRealm</code> 里，而它
+          <strong>不在工作区源码中</strong>： 全仓库搜不到该 .java 文件，只在{' '}
+          <code>spring-context-shiro.xml:100</code> 被引用， sources jar 是 1
+          KB（空）。安全层实现读不到、改不动，换 token 必然形成两套认证并行。
         </Typography.Paragraph>
         <Typography.Paragraph style={{ marginBottom: 0 }}>
           同源反代下 cookie 自动携带、自动过期、自动跨标签页共享，session 本身就是更安全的 token

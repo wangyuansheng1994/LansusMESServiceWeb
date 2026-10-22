@@ -5,6 +5,7 @@
  * 与构建产物 version.json 的 apiContractVersion 必须一致（方案 v3.1 §4.7）。
  */
 import { get } from '@/api/request';
+import { API_V1 } from '@/api/config';
 
 export interface BackendVersion {
   backendVersion: string;
@@ -14,9 +15,10 @@ export interface BackendVersion {
   productName?: string | null;
 }
 
-/** 前端构建时随 version.json 一起产出的契约版本（vite.config.ts 内同名常量） */
-export const FRONTEND_API_CONTRACT_VERSION = '1.0.0';
+/** 前端契约版本——单一来源是 vite.config.ts 的 API_CONTRACT_VERSION（经 define 注入），勿另写常量 */
+export const FRONTEND_API_CONTRACT_VERSION: string =
+  import.meta.env.VITE_API_CONTRACT_VERSION ?? '1.0.0';
 
 export function getBackendVersion(): Promise<BackendVersion> {
-  return get<BackendVersion>('/aspanse/api/v1/meta/version');
+  return get<BackendVersion>(`${API_V1}/meta/version`);
 }

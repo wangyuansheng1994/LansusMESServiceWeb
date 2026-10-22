@@ -6,6 +6,7 @@
  */
 import axios, { AxiosError, type AxiosInstance, type AxiosResponse } from 'axios';
 import { ApiError } from './types';
+import { ADMIN_PATH, CONTEXT_PATH } from './config';
 
 /**
  * ⚠️ baseURL 契约（写死在注释里，防止后人改坏）
@@ -19,7 +20,9 @@ import { ApiError } from './types';
  *   → 表现为"登录成功了，但每个请求都提示未登录"
  * 这不是配置错误，是浏览器安全模型决定的。
  */
-const BASE_URL = import.meta.env.VITE_API_BASE ?? '/console';
+// 取值单一来源在 config.ts：运行时 env.js（window.__ENV__.CONTEXT_PATH）优先，
+// 其次构建期 .env.*，最后默认值 —— 形态 B 部署 /MES 上下文时只需改 env.js。
+const BASE_URL = CONTEXT_PATH;
 
 export const http: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -112,7 +115,7 @@ export function isLoginPageBody(body: unknown): boolean {
     body.includes('loginForm') ||
     body.includes('name="username"') ||
     body.includes('请填写用户名') ||
-    body.includes('/aspanse/login')
+    body.includes(`${ADMIN_PATH}/login`)
   );
 }
 

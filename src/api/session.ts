@@ -24,6 +24,9 @@ import { create } from 'zustand';
 import { get, post } from './request';
 import { ApiError } from './types';
 import { setUnauthenticatedHandler } from './query';
+import { clearTabStorage } from '@/stores/tabStore';
+import { usePermStore } from '@/stores/permStore';
+import { ADMIN_PATH, API_V1, appUrl } from './config';
 
 export interface CurrentUser {
   userCode: string;
@@ -50,10 +53,10 @@ interface AuthState {
  *     GET ${adminPath}/api/v1/me  →  RestResult<CurrentUser>
  *   在它落地之前，checkSession 会退化为"用一个必须登录的老接口探活"。
  */
-const ME_API = '/aspanse/api/v1/me';
+const ME_API = `${API_V1}/me`;
 
 /** 退化的探活接口：随便一个必须登录的老接口即可 */
-const FALLBACK_PROBE_API = '/aspanse/md/mdCustomer/mdCustLookUp';
+const FALLBACK_PROBE_API = `${ADMIN_PATH}/md/mdCustomer/mdCustLookUp`;
 
 export const useAuthStore = create<AuthState>((set, getState) => ({
   user: null,
@@ -78,7 +81,7 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
   async login(username, password) {
     const body = new URLSearchParams({ loginName: username, password }).toString();
 
-    await post<unknown>('/aspanse/api/v1/auth/login', body, {
+    await post<unknown>(`${API_V1}/auth/login`, body, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 30_000,
     });
@@ -89,12 +92,15 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
 
   async logout() {
     try {
-      await get<string>('/aspanse/logout', undefined, { raw: true });
+      await get<string>(`${ADMIN_PATH}/logout`, undefined, { raw: true });
     } catch {
       // 忽略：登出失败也要清本地状态
     }
     set({ user: null });
-    window.location.href = '/login';
+    // 登出双边清理：标签页状态与权限集一并清掉（老壳退出后重进也只有「首页」）
+    clearTabStorage();
+    usePermStore.getState().reset();
+    window.location.href = appUrl('/login');
   },
 
   /**
@@ -109,6 +115,8 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
       // 优先用新增的 /api/v1/me
       const me = await get<CurrentUser>(ME_API);
       set({ user: me, ready: true, checking: false });
+      // 接通权限链：/me 下发的全量权限码写入 permStore（PermButton/usePerm 才有子弹）
+      usePermStore.getState().setPerms(me.perms ?? []);
       return true;
     } catch (e) {
       // /api/v1/me 还没实现（404/badResponse）→ 退化为探活老接口
@@ -119,7 +127,8 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
       if (notImplemented) {
         try {
           await get(FALLBACK_PROBE_API, { pageSize: 1 });
-          // 能拿到数据说明会话有效，但拿不到用户信息
+          // 能拿到数据说明会话有效，但拿不到用户信息；/me 缺失期间权限集置空（fail-closed）
+          usePermStore.getState().setPerms([]);
           set({ user: { userCode: '(未提供 /api/v1/me)' }, ready: true, checking: false });
           return true;
         } catch (probeErr) {
@@ -211,6 +220,6 @@ export function installUnauthenticatedHandler(): void {
     stopHeartbeat();
     const here = window.location.pathname + window.location.search;
     const next = encodeURIComponent(here);
-    window.location.href = `/login?redirect=${next}`;
+    window.location.href = `${appUrl('/login')}?redirect=${next}`;
   });
 }

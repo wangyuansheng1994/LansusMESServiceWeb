@@ -8,10 +8,10 @@
  * 为什么：如果全局拦截器把业务错误也弹成顶部 toast，会出现
  * "表单提交失败只飘了个 toast，用户不知道是哪个字段错了"。
  */
-import { message as antdMessage } from 'antd';
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { ApiError } from './types';
 import { reportApiError } from './errorReport';
+import { notifyError } from './notify';
 
 /**
  * 错误码 → 用户文案。
@@ -93,10 +93,10 @@ export function handleGlobalError(e: unknown): void {
       return; // ★ 组件自己处理，不抢
     case 'server':
       onReport?.(e); // 先上报再提示
-      antdMessage.error(resolveErrorMessage(e));
+      notifyError(resolveErrorMessage(e));
       return;
     default:
-      antdMessage.error(resolveErrorMessage(e));
+      notifyError(resolveErrorMessage(e));
   }
 }
 
@@ -121,10 +121,10 @@ export const queryClient = new QueryClient({
         }
         return count < 2;
       },
-      staleTime: 30_000,
+      staleTime: 0, // 方案 v3.1 §7.3：业务列表默认 0 保新鲜；字典类单独 staleTime:30min + 版本号失效
       // MES 是内网常驻页面，切窗口就重新拉数据会造成无谓压力
       refetchOnWindowFocus: false,
-      // 取消的请求不算错误，不要重试
+      // 错误态查询在组件重新挂载（如切回标签页）时不自动重取，重试节奏交给用户
       retryOnMount: false,
     },
   },

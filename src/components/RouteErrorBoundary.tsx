@@ -16,9 +16,9 @@ interface State {
 /**
  * 路由级渲染兜底。
  *
- * 必要性：AntD 6 + React 19 是新组合，图表组件（@ant-design/charts 依赖
- * @ant-design/plots + @ant-design/graphs）历史上出现过 React 19 运行时问题。
- * 一个组件崩掉不应该让整个页面白屏 —— 这对生产系统是硬要求。
+ * 必要性：AntD 6 + React 19 是新组合，页面还会挂载 echarts 大图、
+ * iframe 老页等重组件 —— 任何一个组件崩掉都不应该让整个页面白屏，
+ * 这对生产系统是硬要求。
  */
 export class RouteErrorBoundary extends Component<Props, State> {
   state: State = { error: null, info: null };
