@@ -176,9 +176,8 @@ async function ping(): Promise<void> {
   } catch (e) {
     // 心跳失败不弹提示 —— 断网时用户不该被心跳刷屏
     if (e instanceof ApiError && e.kind === 'unauthenticated') {
-      stopHeartbeat();
-      // 交给全局未登录处理
       useAuthStore.setState({ user: null });
+      redirectToLogin('timeout');
       return;
     }
     backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
@@ -214,12 +213,20 @@ export function stopHeartbeat(): void {
   }
 }
 
+/**
+ * 统一跳登录页：停心跳、记住当前路由以便回来；
+ * reason=timeout 时登录页显示"登录已超时，请重新登录"（SYS-0001 文案，
+ * 老系统无此提示，2026-10-22 经负责人确认补充）。
+ */
+function redirectToLogin(reason?: 'timeout'): void {
+  stopHeartbeat();
+  const here = window.location.pathname + window.location.search;
+  const next = encodeURIComponent(here);
+  const suffix = reason ? `&reason=${reason}` : '';
+  window.location.href = `${appUrl('/login')}?redirect=${next}${suffix}`;
+}
+
 /** 由 App 注入：收到未登录时跳 React 登录页，并记住当前路由以便回来 */
 export function installUnauthenticatedHandler(): void {
-  setUnauthenticatedHandler(() => {
-    stopHeartbeat();
-    const here = window.location.pathname + window.location.search;
-    const next = encodeURIComponent(here);
-    window.location.href = `${appUrl('/login')}?redirect=${next}`;
-  });
+  setUnauthenticatedHandler(() => redirectToLogin('timeout'));
 }

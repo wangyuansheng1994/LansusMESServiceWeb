@@ -34,7 +34,11 @@ export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // 会话超时跳回（session.ts redirectToLogin 带 reason=timeout）：沿用 SYS-0001
+  // 文案直接上屏。老登录页无此提示，2026-10-22 经负责人确认补充（登记偏差）
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get('reason') === 'timeout' ? '登录已超时，请重新登录' : null,
+  );
   const login = useAuthStore((s) => s.login);
 
   const versionQuery = useQuery({
