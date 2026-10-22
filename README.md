@@ -47,9 +47,9 @@ src/
 ├── stores/     # zustand：permStore（权限码）、tabStore（多标签，sessionStorage 持久化）
 ├── routes/     # AppRoutes + RequireAuth + pageRegistry（路由与 keep-alive 共用登记表）
 ├── layouts/    # AppLayout（外壳容器）+ AppHeader + AppSiderMenu + AppTabsBar
-├── pages/      # LoginPage / HomePage（首页待办 iframe）/ LegacyPage（老 JSP 容器）
+├── pages/      # 外壳页（LoginPage / HomePage / LegacyPage）+ 业务域页面（{域}/...，
+│               # 与老 JSP views/{域}/ 路径对应，方案 v3.1 §7.4）；devtools 为框架验证页（P0-c 验收后删）
 ├── components/ # PermButton / RouteErrorBoundary / NotifyHolder（App.useApp 桥）
-├── modules/    # 业务域页面（{域}/pages/...）；devtools 为框架验证页（P0-c 验收后删）
 ├── utils/      # storage.ts（localStorage/sessionStorage 统一入口，mes: 前缀 + 版本号）
 └── styles/     # global.css
 ```

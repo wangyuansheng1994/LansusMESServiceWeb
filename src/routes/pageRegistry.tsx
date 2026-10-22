@@ -16,18 +16,18 @@ import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import { LegacyPage } from '@/pages/LegacyPage';
 import { HomePage } from '@/pages/HomePage';
 
-// 代码分割：每个模块独立 chunk，避免页面全塞进首屏（沿用骨架既有策略）
+// 代码分割：每个页面独立 chunk，避免页面全塞进首屏（沿用骨架既有策略）
 const CustomerDemoPage = lazy(() =>
-  import('@/modules/md/pages/CustomerDemoPage').then((m) => ({ default: m.CustomerDemoPage })),
+  import('@/pages/md/CustomerDemoPage').then((m) => ({ default: m.CustomerDemoPage })),
 );
 const ErrorLabPage = lazy(() =>
-  import('@/modules/devtools/pages/ErrorLabPage').then((m) => ({ default: m.ErrorLabPage })),
+  import('@/pages/devtools/ErrorLabPage').then((m) => ({ default: m.ErrorLabPage })),
 );
 const ChartLabPage = lazy(() =>
-  import('@/modules/devtools/pages/ChartLabPage').then((m) => ({ default: m.ChartLabPage })),
+  import('@/pages/devtools/ChartLabPage').then((m) => ({ default: m.ChartLabPage })),
 );
 const ApiDocPage = lazy(() =>
-  import('@/modules/devtools/pages/ApiDocPage').then((m) => ({ default: m.ApiDocPage })),
+  import('@/pages/devtools/ApiDocPage').then((m) => ({ default: m.ApiDocPage })),
 );
 
 /** 路由级 loading —— 每个懒加载页面的兜底 */
