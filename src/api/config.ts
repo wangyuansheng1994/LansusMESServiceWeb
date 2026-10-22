@@ -41,8 +41,9 @@ export const CTX = `${CONTEXT_PATH}${ADMIN_PATH}`;
 /** 新适配层统一前缀：${adminPath}/api/v1 */
 export const API_V1 = `${ADMIN_PATH}/api/v1`;
 
-/** SPA 挂载点（BrowserRouter basename）：开发=/，形态 B=/console/app/ 或 /MES/app/ */
-export const APP_BASE: string = env.APP_BASE ?? '/';
+/** SPA 挂载点（BrowserRouter basename）：默认跟随构建基址 import.meta.env.BASE_URL
+ * （dev=/、默认构建=/console/app/、build:mes=/MES/app/），env.js 可覆盖 */
+export const APP_BASE: string = env.APP_BASE ?? import.meta.env.BASE_URL;
 
 /** SPA 站内地址：补挂载点前缀（全页跳转场景用，如 /login） */
 export function appUrl(path: string): string {

@@ -7,8 +7,10 @@
          favicon 与老菜单图标字体 CSS 在 main.tsx 按 CONTEXT_PATH 运行时注入
          （index.html 不写死 /console 前缀，否则 /MES 上下文部署全 404） -->
     <title>嘉辰智能制造平台</title>
-    <!-- 运行时环境配置（形态 B 部署时按服务器上下文改写，不打包不 hash） -->
-    <script src="./env.js"></script>
+    <!-- 运行时环境配置（部署时按服务器上下文改写，不打包不 hash）。
+         %BASE_URL% 由 Vite 构建期替换（= vite.config 的 base），保证深链接刷新时
+         也按绝对路径取到 env.js，不受文档 URL 影响 -->
+    <script src="%BASE_URL%env.js"></script>
   </head>
   <body>
     <div id="root"></div>

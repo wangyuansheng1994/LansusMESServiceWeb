@@ -57,9 +57,15 @@ function versionJsonPlugin(): Plugin {
  *     Shiro 1.2.6 不写 SameSite 属性，浏览器按 SameSite=Lax 处理，
  *     跨站 XHR 不会携带 pw.session.id。
  */
-export default defineConfig({
-  // 相对路径产物：同一个 dist 可部署到 /console/app/ 或 /MES/app/（形态 B 的硬要求）
-  base: './',
+export default defineConfig(({ mode }) => ({
+  // 部署基址按构建模式绝对化（2026-10-22 负责人裁决）：
+  // 原先的相对 base './' 配合 BrowserRouter，多段路由深链接刷新时
+  // （如 /console/app/demo/customer）会把 ./assets/... 解析到当前路径段之下 → 404 白屏。
+  //   dev                   → /
+  //   production（默认构建） → /console/app/（本地 unit 与 uat/pro 通用，同为 /console 上下文）
+  //   mes（pnpm build:mes）  → /MES/app/（嘉辰测试服）
+  // 代价：/MES 需单独构建；运行时配置（CONTEXT_PATH/ADMIN_PATH/APP_BASE）仍由 dist/env.js 注入。
+  base: mode === 'mes' ? '/MES/app/' : mode === 'development' ? '/' : '/console/app/',
   plugins: [react(), versionJsonPlugin()],
   define: {
     // 契约版本号单一来源注入：meta.ts 的 FRONTEND_API_CONTRACT_VERSION 读这里
@@ -115,4 +121,4 @@ export default defineConfig({
     // 图表库天然大，调高阈值避免无意义的告警
     chunkSizeWarningLimit: 1500,
   },
-});
+}));

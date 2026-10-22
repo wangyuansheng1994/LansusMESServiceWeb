@@ -67,6 +67,7 @@ src/
 ## 4. 环境配置
 
 - `.env.development` / `.env.production`：`VITE_API_BASE=/console`（同源相对路径，禁止绝对跨域地址）
-- 运行时注入：`public/env.js`（`window.__ENV__`，部署期可改 `CONTEXT_PATH`/`ADMIN_PATH`/`APP_BASE`，不打包不 hash；优先级高于 `.env`，单一来源见 `src/api/config.ts`）
+- 构建模式（深链接修复后，2026-10-22）：`pnpm build` → 基址 `/console/app/`（本地 unit 与 uat/pro 通用）；`pnpm build:mes` → 基址 `/MES/app/`（嘉辰测试服）；资源 URL 构建期绝对化，深链接刷新不 404
+- 运行时注入：`public/env.js`（`window.__ENV__`，部署期可改 `CONTEXT_PATH`/`ADMIN_PATH`/`APP_BASE`，不打包不 hash；优先级高于构建默认值，单一来源见 `src/api/config.ts`。uat/pro 部署只需改 `ADMIN_PATH=/jssi`）
 - 开发代理：`vite.config.ts` 把 `/console/**` 代理到 `127.0.0.1:8080`（`changeOrigin: false` 勿改）
 - 契约版本号单一来源：`vite.config.ts` 的 `API_CONTRACT_VERSION`（经 `define` 注入 `import.meta.env.VITE_API_CONTRACT_VERSION`）
