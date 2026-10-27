@@ -7,9 +7,8 @@ import { useAuthStore } from '@/api/session';
  * 路由守卫。
  *
  * 会话检查策略：
- *  - 首次进入时调 checkSession()，优先打 /api/v1/me（后端待新增），
- *    未实现则退化为探活老接口（见 session.ts）
- *  - 失败 → 跳后端登录页，并把当前路由记在 ?redirect=
+ *  - 首次进入时调 checkSession()，通过 /api/v1/me 读取真实用户与权限
+ *  - 未登录 → 跳本地 React 登录页，并在路由 state 中保留来源页面
  *
  * ⚠️ 这里【不做权限判断】，只判断"有没有登录"。
  *    权限是按钮/菜单级的（PermButton / 菜单过滤），

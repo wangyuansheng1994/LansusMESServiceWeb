@@ -3,8 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Layout, Modal, Result } from 'antd';
 import { useAuthStore } from '@/api/session';
-import { getHome, toLegacyUrl, type MenuNode } from '@/api/modules/home';
-import { getBackendVersion, FRONTEND_API_CONTRACT_VERSION } from '@/api/modules/meta';
+import { getHome, buildLegacySrc, toLegacyUrl, type MenuNode } from '@/api/modules/home';
+import {
+  getBackendVersion,
+  getVersionIncompatibility,
+  FRONTEND_API_CONTRACT_VERSION,
+  FRONTEND_MIN_BACKEND_VERSION,
+} from '@/api/modules/meta';
+import { VersionWatcher } from '@/components/VersionWatcher';
+import { notifyError } from '@/api/notify';
 import { HOME_TAB_KEY, useTabStore } from '@/stores/tabStore';
 import { matchPageDef } from '@/routes/pageRegistry';
 import { AppHeader } from '@/layouts/AppHeader';
@@ -65,7 +72,8 @@ export function AppLayout() {
   const homeQuery = useQuery({
     queryKey: ['home'],
     queryFn: getHome,
-    staleTime: 10 * 60_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 
@@ -82,9 +90,13 @@ export function AppLayout() {
    *  - meta/version 未实现/网络异常 → 降级：不阻断，后端补回端点后阻断自动生效
    * 该检查不占用顶栏视觉（老壳无此类元素），只在不匹配时整屏提示。
    */
-  const contractMismatch =
-    versionQuery.data !== undefined &&
-    versionQuery.data.apiContractVersion !== FRONTEND_API_CONTRACT_VERSION;
+  const versionIncompatibility = versionQuery.data
+    ? getVersionIncompatibility(
+        FRONTEND_API_CONTRACT_VERSION,
+        FRONTEND_MIN_BACKEND_VERSION,
+        versionQuery.data,
+      )
+    : null;
 
   // 路由 → 标签同步：进入已登记页面即开标签（已存在则激活）
   useEffect(() => {
@@ -129,13 +141,25 @@ export function AppLayout() {
     }
     const node = nodeIndex.get(key);
     if (!node || (node.children?.length ?? 0) > 0) return; // 分组节点不开页
-    if (!node.url) return;
+
+    const reactRoute = node.newUrl?.trim();
+    if (reactRoute) {
+      const routePath = reactRoute.split(/[?#]/)[0];
+      if (routePath === '/legacy' || !matchPageDef(routePath)) {
+        notifyError(`菜单「${node.name}」的新路由未登记或不允许打开：${reactRoute}`);
+        return;
+      }
+      navigate(reactRoute);
+      return;
+    }
+
+    if (!node.url) {
+      notifyError(`菜单「${node.name}」未配置旧页面地址`);
+      return;
+    }
     // 老壳 URL 契约（menu.jsp:79-84）：打开页面时 URL 追加 SessionID=user.rowId & MenuID=菜单id，
     // 老页面有按这两个参数做数据/权限过滤的，漏带会导致与老壳行为不一致
-    const sep = node.url.includes('?') ? '&' : '?';
-    const legacySrc = `${node.url}${sep}SessionID=${encodeURIComponent(
-      homeQuery.data?.rowId ?? '',
-    )}&MenuID=${encodeURIComponent(node.id)}`;
+    const legacySrc = buildLegacySrc(node.url, homeQuery.data?.rowId ?? '', node.id);
     // 老页面 → 开标签：/legacy?src=…（同源 iframe，深链接可还原）
     navigate(`/legacy?src=${encodeURIComponent(legacySrc)}&name=${encodeURIComponent(node.name)}`);
   };
@@ -148,6 +172,7 @@ export function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <VersionWatcher />
       <AppHeader
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
@@ -174,12 +199,12 @@ export function AppLayout() {
         />
         {/* 内容列钉死在视口内：标签条固定，内容区内部滚动 */}
         <Layout style={{ height: 'calc(100vh - 80px)' }}>
-          {contractMismatch ? (
+          {versionIncompatibility ? (
             <Content style={{ margin: 16, overflow: 'auto' }}>
               <Result
                 status="warning"
-                title="前后端版本契约不匹配"
-                subTitle={`前端 apiContractVersion=${FRONTEND_API_CONTRACT_VERSION}，后端=${versionQuery.data?.apiContractVersion}。为避免新旧版本错配造成数据问题，已阻止进入业务页面，请联系管理员（方案 v3.1 §4.7）。`}
+                title="前后端版本不兼容"
+                subTitle={`${versionIncompatibility}。为避免新旧版本错配造成数据问题，已阻止进入业务页面，请联系管理员。`}
               />
             </Content>
           ) : (

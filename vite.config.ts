@@ -1,40 +1,41 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
+import { captureSourceProvenance } from './scripts/source-provenance.mjs';
 
-/** 前后端版本契约版本号 —— 单一来源；通过 define 注入 import.meta.env，前端代码从这里读 */
-const API_CONTRACT_VERSION = '1.0.0';
+const contract = JSON.parse(
+  readFileSync(new URL('./api-contract.json', import.meta.url), 'utf8'),
+) as {
+  apiContractVersion: string;
+  minBackendVersion: string;
+  frontendVersion: string;
+};
+const API_CONTRACT_VERSION = contract.apiContractVersion;
+const source = captureSourceProvenance(fileURLToPath(new URL('.', import.meta.url)));
 
-/**
- * 构建时产出 dist/version.json（方案 v3.1 §6.2 / 任务书 6.3）：
- * 前端启动 / 路由切换时与后端 /api/v1/meta/version 协商比对。
- * 注意 frontendCommit 在构建时取当前 git commit —— 因此必须先提交再构建。
- */
 function versionJsonPlugin(): Plugin {
   return {
     name: 'emit-version-json',
     apply: 'build',
     generateBundle() {
-      let commit = 'unknown';
-      try {
-        commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
-          .toString()
-          .trim();
-      } catch {
-        // 无 git 环境（如直接拷贝源码构建）时保留 unknown
-      }
       const version = {
-        frontendVersion: 'framework-v1',
-        frontendCommit: commit,
+        frontendVersion: contract.frontendVersion,
+        frontendCommit: source.displayCommit,
+        sourceDiffHash: source.diffHash,
         buildTime: new Date().toISOString(),
         apiContractVersion: API_CONTRACT_VERSION,
-        minBackendVersion: '1.0.0',
+        minBackendVersion: contract.minBackendVersion,
       };
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify(version, null, 2),
+      });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'api-contract.json',
+        source: `${JSON.stringify(contract, null, 2)}\n`,
       });
     },
   };
@@ -70,6 +71,7 @@ export default defineConfig(({ mode }) => ({
   define: {
     // 契约版本号单一来源注入：meta.ts 的 FRONTEND_API_CONTRACT_VERSION 读这里
     'import.meta.env.VITE_API_CONTRACT_VERSION': JSON.stringify(API_CONTRACT_VERSION),
+    'import.meta.env.VITE_MIN_BACKEND_VERSION': JSON.stringify(contract.minBackendVersion),
   },
   resolve: {
     alias: {

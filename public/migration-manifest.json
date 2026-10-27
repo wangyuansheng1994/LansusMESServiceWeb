@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": {
+    "clientTouchpoints": "../LansusMESService/client-touchpoints.json",
+    "note": "首版仅用于框架验证与客户端交集检查，不代表业务页面已迁移。"
+  },
+  "bridgeAllowlist": [],
+  "clientDenyList": [
+    "/data/strip/emapDataStrip/stripMapping",
+    "/data/wafer/emapDataWafer/waferMappingMulti",
+    "/lot/lotprocess/lotProcessStepPic/showUploadFile",
+    "/lot/pack/lotPack/printInfos",
+    "/lot/pack/lotPackPackinglist/lotPackingRuncard",
+    "/lot/pack/lotPackPackinglist/packinglistPrint",
+    "/md/tooling/mdTooling/showUploadFile",
+    "/mes/lot/dateBase/traditionBrawingViewController/watchTraditionBrawing",
+    "/mo/order/moOrder/meslotRuncardList",
+    "/mo/order/moOrder/watchBD",
+    "/npi/marking/npiDefineMarking/browseMarking",
+    "/pqa/disposition/pqaProcessFtld/showUploadFile"
+  ],
+  "pages": [
+    {
+      "pagePath": "/demo/customer",
+      "domain": "framework",
+      "owner": "framework",
+      "status": "framework-demo",
+      "oldUrl": null,
+      "newRoute": "/demo/customer",
+      "permCodes": [],
+      "apiList": ["/md/mdCustomer/mdCustLookUp"],
+      "bridgeEligible": false,
+      "clientTouchpointType": "none",
+      "clientTouchpointRef": null,
+      "clientBridgePolicy": "undecided",
+      "clientEvidence": "source",
+      "regression": "pending"
+    }
+  ]
+}

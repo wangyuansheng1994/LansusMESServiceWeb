@@ -47,15 +47,10 @@ interface AuthState {
   setUser: (u: CurrentUser | null) => void;
 }
 
-/**
- * 当前用户信息接口。
- * ★ 预期由后端新增（见 demo-web/README.md 的"后端待办"）：
- *     GET ${adminPath}/api/v1/me  →  RestResult<CurrentUser>
- *   在它落地之前，checkSession 会退化为"用一个必须登录的老接口探活"。
- */
+/** 真实用户与权限接口；心跳使用独立的 session/ping。 */
 const ME_API = `${API_V1}/me`;
 
-/** 退化的探活接口：随便一个必须登录的老接口即可 */
+/** 仅用于兼容未部署 /me 的旧适配层。 */
 const FALLBACK_PROBE_API = `${ADMIN_PATH}/md/mdCustomer/mdCustLookUp`;
 
 export const useAuthStore = create<AuthState>((set, getState) => ({
@@ -66,17 +61,8 @@ export const useAuthStore = create<AuthState>((set, getState) => ({
   setUser: (u) => set({ user: u }),
 
   /**
-   * 登录。
-   *
-   * ★ 走后端 JSON 登录接口（AuthApiController，已随 framework-preview 落地）：
-   *     POST /console/aspanse/api/v1/auth/login  (application/x-www-form-urlencoded)
-   *     字段：loginName、password
-   *   后端复刻 MobileMainController 的程序化登录先例（"SSO" 哨兵口令 +
-   *   SystemAuthorizingRealm），成功即建立同一套 Shiro Session，
-   *   Set-Cookie pw.session.id，与老 JSP 页面天然互通。
-   *
-   *   RestResult 信封由适配器解包：result:false 会抛 ApiError(business)，
-   *   message 为后端原文（"用户名或密码输入错误，请重新输入" 等）。
+   * 复用桌面登录的自定义 token 和 SystemAuthorizingRealm。
+   * 成功后在同一 Shiro Session 下读取真实用户与权限，老 JSP 共享该会话。
    */
   async login(username, password) {
     const body = new URLSearchParams({ loginName: username, password }).toString();
@@ -170,8 +156,8 @@ let visibilityBound = false;
 
 async function ping(): Promise<void> {
   try {
-    // /api/v1/me 已落地（MeApiController），比老查询接口轻量
-    await get(ME_API);
+    // 专用心跳只续期，不重复读取权限，也不写普通操作审计。
+    await get(`${API_V1}/session/ping`);
     backoff = HEARTBEAT_MS; // 成功，恢复正常节奏
   } catch (e) {
     // 心跳失败不弹提示 —— 断网时用户不该被心跳刷屏

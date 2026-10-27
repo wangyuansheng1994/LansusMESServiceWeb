@@ -63,6 +63,16 @@ export default [
     files: ['src/api/**'],
     rules: { 'no-restricted-imports': 'off' },
   },
+  {
+    files: ['scripts/**/*.js', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
+  },
   // 关闭与 Prettier 冲突的格式规则，必须放最后
   prettierConfig,
 ];

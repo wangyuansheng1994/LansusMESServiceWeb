@@ -14,6 +14,8 @@ export interface MenuNode {
   nameTc?: string | null;
   /** 老 ad_menu.menu_url：相对路径需补 /console 前缀（规则见 toLegacyUrl） */
   url?: string | null;
+  /** ad_menu.new_url：有值时优先打开已登记的 React 路由，空值仍走旧 JSP */
+  newUrl?: string | null;
   icon?: string | null;
   target?: string | null;
   orderNum?: number | null;
@@ -52,4 +54,18 @@ export function getHome(): Promise<HomeData> {
 export function toLegacyUrl(menuUrl: string): string {
   if (menuUrl.includes('://')) return menuUrl;
   return CTX + (menuUrl.startsWith('/') ? '' : '/') + menuUrl;
+}
+
+/** 与老壳一致：旧页面地址追加 SessionID 和 MenuID；未传参时不改变原查询串。 */
+export function buildLegacySrc(
+  menuUrl: string,
+  sessionId?: string | null,
+  menuId?: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (sessionId !== undefined && sessionId !== null) params.set('SessionID', sessionId);
+  if (menuId !== undefined && menuId !== null) params.set('MenuID', menuId);
+  const query = params.toString();
+  if (!query) return menuUrl;
+  return `${menuUrl}${menuUrl.includes('?') ? '&' : '?'}${query}`;
 }
