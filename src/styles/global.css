@@ -42,3 +42,37 @@ pre {
 .app-sider::-webkit-scrollbar {
   display: none; /* Chrome / Edge / 国产双核 */
 }
+
+/* ── 骨架屏（2026-10-28）：替代加载转圈 ─────────────────────────
+   默认深色变体（侧栏菜单骨架，置于 #001529 底上）；
+   .sk-light 浅色变体（白底内容区/顶栏）。shimmer 扫光表达加载中。 */
+.sk-line {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+.sk-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  animation: sk-shimmer 1.4s infinite;
+}
+.sk-line.sk-light {
+  background: #eceff3;
+}
+.sk-line.sk-light::after {
+  background: linear-gradient(90deg, transparent, #f8fafc, transparent);
+}
+@keyframes sk-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-line::after {
+    animation: none;
+  }
+}

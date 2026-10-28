@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Spin } from 'antd';
 import { useAuthStore } from '@/api/session';
+import { ShellSkeleton } from '@/components/skeletons';
 
 /**
  * 路由守卫。
@@ -29,13 +29,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }, [ready, checkSession]);
 
   if (!ready) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}>
-        <Spin size="large" tip="正在校验登录状态…">
-          <div style={{ width: 160, height: 40 }} />
-        </Spin>
-      </div>
-    );
+    // 会话校验（/me）期间展示外壳骨架（2026-10-28：替代整屏转圈，形状对位最终布局）
+    return <ShellSkeleton />;
   }
 
   if (!user) {

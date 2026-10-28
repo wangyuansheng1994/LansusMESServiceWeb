@@ -21,12 +21,15 @@ import '@/styles/global.css';
 installUnauthenticatedHandler();
 
 // favicon 与老菜单图标字体 CSS：按 CONTEXT_PATH 运行时注入（index.html 不写死 /console，
-// 否则 /MES 上下文部署全 404）。icons.min.css = remixicon/MDI/FA5（L1 图标全类名）；
-// font-awesome.css = FA3 icon-*（L2 图标 icon-{menu_img}）——菜单图标与老壳逐字一致的关键，勿删。
+// 否则 /MES 上下文部署全 404）。只加载 icons.min.css —— 它自带 MDI/remixicon/FA5
+// 三套 @font-face（字体文件齐全），L1 菜单 menu_img 的 mdi-*/ri-*/fa fa-* 均可渲染。
+// 曾尝试加载 FA4.6 font-awesome.min.css，但其字体文件 fontawesome-webfont.* 在
+// 服务器上不存在（404），有样式无字形，已移除（2026-10-28）。
+// ⚠️ menu_img 存 FA3 时代的 icon-* 类名（如「图谱管理」）渲染不出来——那是数据问题，
+//    应在老系统菜单管理里改成 mdi-*/ri-* 全类名，两侧同时生效。
 for (const link of [
   { rel: 'shortcut icon', href: `${CONTEXT_PATH}/html/assets/images/favicon.ico` },
   { rel: 'stylesheet', href: `${CONTEXT_PATH}/html/assets/css/icons.min.css` },
-  { rel: 'stylesheet', href: `${CONTEXT_PATH}/html/bootstrap/2.3.1/awesome/font-awesome.css` },
 ]) {
   const el = document.createElement('link');
   el.rel = link.rel;

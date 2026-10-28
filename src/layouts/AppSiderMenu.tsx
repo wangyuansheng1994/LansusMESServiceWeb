@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Layout, Menu, Spin } from 'antd';
+import { Alert, Layout, Menu } from 'antd';
+import { MenuSkeleton } from '@/components/skeletons';
 import type { MenuProps } from 'antd';
 import { BugOutlined, ExperimentOutlined } from '@ant-design/icons';
 import type { MenuNode } from '@/api/modules/home';
@@ -10,18 +11,24 @@ const { Sider } = Layout;
 type MenuItem = Required<MenuProps>['items'][number];
 
 /**
- * 菜单图标（对位 menu.jsp）：
- *   L1 直接用 ad_menu.menu_img 全类名（menu.jsp:123/:133，remixicon/MDI）；
- *   L2 用 icon-{menu_img}（menu.jsp:171，FA3，空值回退 circle-arrow-right）；
- *   L3 叶子无图标（label 带 · 前缀，menu.jsp:175）。
- * 图标字体 CSS 在 index.html 引入（icons.min.css + FA3 font-awesome.css），勿删。
+ * 菜单图标（对位 menu.jsp 的【实际渲染效果】，2026-10-28 修正）：
+ *   只有 L1 渲染 ad_menu.menu_img 全类名图标（remixicon/MDI，icons.min.css 提供）。
+ *   L2/L3 不渲染任何图标 —— 老系统虽写了 icon-*（FA3 类名），但 menu.jsp 只加载
+ *   FA4.6（无 icon-* 类），这些 <i> 从未渲染出来：L2 的折叠箭头来自 metismenu
+ *   has-arrow CSS（新壳由 antd 自带展开箭头对位），L3 只有「·名字」。
+ *   曾给 L2/L3 渲染 icon-{menu_img} 回退 circle-arrow-right，导致多出箭头图标
+ *   与空占位（负责人实测反馈），与老系统视觉不符，故移除。
  */
 function menuIcon(node: MenuNode): ReactNode {
   if (node.level === 1) {
-    return node.icon ? <i className={node.icon} aria-hidden /> : undefined;
-  }
-  if (node.level === 2) {
-    return <i className={`icon-${node.icon || 'circle-arrow-right'}`} aria-hidden />;
+    // 无图标也传入等宽占位节点（1em×1em 与真图标同宽，antd 附加的右侧间距一致），
+    // 确保一级菜单文字对齐——menu_img 为空的菜单（如「图谱管理」id=45，库值为空串）
+    // 在老页也只有空槽无图标；数据侧补配图标后占位自动被真图标替换。
+    return node.icon ? (
+      <i className={node.icon} aria-hidden />
+    ) : (
+      <span aria-hidden style={{ display: 'inline-block', width: '1em', height: '1em' }} />
+    );
   }
   return undefined;
 }
@@ -135,9 +142,7 @@ export function AppSiderMenu({
   }, [searching, filteredNodes]);
 
   const body = loading ? (
-    <div style={{ padding: 24, textAlign: 'center' }}>
-      <Spin size="large" tip="正在加载菜单…" />
-    </div>
+    <MenuSkeleton />
   ) : error ? (
     <div style={{ padding: 16 }}>
       <Alert
